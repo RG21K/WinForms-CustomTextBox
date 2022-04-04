@@ -3,9 +3,7 @@
 <strong>Author:</strong> <i>Ricardo Garcia</i>
 
 
-<strong>Information:</strong>
-
-<i>The default WinForms TextBox with extra functionality.</i>
+<strong>Information:</strong> <i>The default WinForms TextBox with extra functionality.</i>
 
 
 <strong>Features:</strong>
