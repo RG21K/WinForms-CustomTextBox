@@ -4,9 +4,10 @@
  * Last Update: 2022, 04.04
  
  * Bug Fixes:
- *      - Prevented Clipboard Data to be Set to the Control.
- *      - (Occasionally) Impossible to Set the Decimals and Currency Designator when Changing the TextBox Input Type.
- *      - Character Limiter Function was Missing.
+ *      - Fixed: Prevented Invalid Clipboard Data to be Set to the Control.
+ *      - Fixed: (Occasionally) Impossible to Set the Decimals and Currency Designator when Changing the TextBox Input Type.
+ *      - Fixed: Character Limiter Function was Missing.
+ *      - Fixed: Currency Designator was not Being Updated.
  *
  * Known Bugs:
  *      - There is an issue with Text Limiter while using Decimals. TextBox Prevents user Text Input Proper Behaviour.
