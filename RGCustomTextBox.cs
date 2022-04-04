@@ -32,6 +32,7 @@
  *            3. Set the Currency Designator Location (Left or Right Side of the Number).
  *            4. Set Decimal Values (Decimal Zeros are added Automatically when Entering a Whole Number).
  *            5. Limit Maximum Character Input.
+ *            6. Placeholder (Not Implemented)
  *
  */
 #endregion
@@ -102,7 +103,7 @@ namespace RG_Custom_Controls.Controls
         public bool CurrencyEnabled
         {
             get { return useCurrency; }
-            set 
+            set
             {
                 useCurrency = value;
 
@@ -119,7 +120,19 @@ namespace RG_Custom_Controls.Controls
         public string CurrencyDesignator
         {
             get { return currencyDesignator; }
-            set { currencyDesignator = value; }
+            set
+            {
+                // 1. Remove Current Currency Designator Before Updating to a New Value.
+                Text_RemoveCurrency();
+
+                // 2. Set the New Currency Designator
+                currencyDesignator = value;
+
+                // 3. Format the Currency Text.
+                Text_FormatValue();
+
+                Invalidate();
+            }
         }
 
         public enum DesignatorAlignment { Left, Right }
@@ -131,17 +144,19 @@ namespace RG_Custom_Controls.Controls
         public DesignatorAlignment DesignatorLocation
         {
             get { return designatorAlignment; }
-            set 
+            set
             {
                 designatorAlignment = value;
+
                 Text_FormatValue();
+
                 Invalidate();
             }
         }
         #endregion
 
         #region <Custom Properties> : (3. Decimals)
-        private bool useDecimals;
+        private bool useDecimals = false;
         [Category("1. Custom Properties"), DisplayName("5. Use Decimals")]
         [Description("Select wether to use Whole Number or a Decimal Number.")]
         [Browsable(true)]
@@ -182,6 +197,7 @@ namespace RG_Custom_Controls.Controls
                 }
 
                 Text_FormatValue();
+
                 Invalidate();
             }
         }
@@ -190,7 +206,7 @@ namespace RG_Custom_Controls.Controls
         #region <Custom Properties> : (4. Char Limiter)
         private bool charsLimited = false;
         [Category("1. Custom Properties"), DisplayName("7. Chars Limited")]
-        [Description("Toggle Character Input Limit.")]
+        [Description("Toggle Character Input Limiting.")]
         [Browsable(true)]
         public bool CharsLimited
         {
@@ -200,7 +216,7 @@ namespace RG_Custom_Controls.Controls
 
         private int maximumChars = 32;
         [Category("1. Custom Properties"), DisplayName("8. Maximum Chars")]
-        [Description("Limit the Maximum Number of Chars Allowed.")]
+        [Description("Limit the Maximum Number of Chars Allowed on the Control.")]
         [Browsable(true)]
         public int MaximumChars
         {
@@ -209,7 +225,7 @@ namespace RG_Custom_Controls.Controls
         }
         #endregion
 
-        
+
         #region <Overriden Events>
         /// <summary> Occurs Before the Control Stops Being the Active Control. </summary>
         /// <param name="sender"></param>
@@ -229,15 +245,14 @@ namespace RG_Custom_Controls.Controls
 
             if (!e.KeyChar.Equals((char)Keys.Back))
             {
-                // Limit Number of Characters
                 switch (inputType)
                 {
-                    // case TextBoxInputType.Default: e.Handled = IsLimitingChars(Text.Length); break;
+                    case TextBoxInputType.Default: e.Handled = IsLimitingChars(Text.Length); break;
                     case TextBoxInputType.Numeric:
                         e.Handled = !HasValidNumericChar(e.KeyChar) ^ IsLimitingChars(Text.Length);
-                        if (e.KeyChar.Equals('.') & NrCharOccurrences('.') >= 1) { e.Handled = true; }
+                        //if (e.KeyChar.Equals('.') & NrCharOccurrences('.') >= 1) { e.Handled = true; }
+                        e.Handled = e.KeyChar.Equals('.') & NrCharOccurrences('.') >= 1;
                         break;
-                        // ...
                 }
             }
         }
@@ -249,13 +264,12 @@ namespace RG_Custom_Controls.Controls
             base.OnEnter(e);
 
             // Format the String Value
-            // Text_FormatValue();
+            Text_FormatValue();
             Text_RemoveCurrency();
             Text_RemoveWhiteSpaces();
 
             // Select the Text
-            // SelectAll();
-            Select(0, Text.Length);
+            SelectAll();
         }
 
         /// <summary> Occurs when the Control Stops Being the Active Control. </summary>
@@ -269,14 +283,13 @@ namespace RG_Custom_Controls.Controls
         #endregion
 
 
-        #region <Numeric String>
-
+        #region <Methods> : (Numeric String)
         /// <summary> Sets the Text Value as a Whole Number. </summary>
         private void Text_SetWholeNumber()
         {
-            if (!string.IsNullOrEmpty(GetNumericString()) & /*^*/ !string.IsNullOrWhiteSpace(GetNumericString()))
+            if (!string.IsNullOrEmpty(GetNumericString()) ^ !string.IsNullOrWhiteSpace(GetNumericString()))
             {
-                int number = int.Parse(GetNumericString());
+                int number = (int)GetNumericValue();
                 Text = number.ToString();
             }
 
@@ -289,18 +302,19 @@ namespace RG_Custom_Controls.Controls
         /// <summary> Set Formatted Text Value (Whole Number or Decimal). </summary> // <<------------
         private void Text_ToggleDecimals()
         {
+            string val = string.Empty;
+
             // Decimals Enabled
             if (useDecimals)
             {
                 // String Contains a Value:
-                if (!string.IsNullOrEmpty(GetNumericString()) & !string.IsNullOrWhiteSpace(GetNumericString()))
+                if (!string.IsNullOrEmpty(GetNumericString()) ^ !string.IsNullOrWhiteSpace(GetNumericString()))
                 {
                     decimal decVal = -1;
-                    string val = string.Empty;
 
                     // Success:
                     // [Reference]: if (decimal.TryParse(Text, out decVal)) { val = decVal.ToString("0.00"); }
-                    if (decimal.TryParse(GetNumericString(), out decVal)) { val = decVal.ToString(decimalFormat); }
+                    if (decimal.TryParse(Text, out decVal)) { val = decVal.ToString(decimalFormat); }
 
                     // else { /* FAIL */ }
 
@@ -312,7 +326,6 @@ namespace RG_Custom_Controls.Controls
                 else
                 {
                     decimal decVal = -1;
-                    string val = string.Empty;
 
                     // Success:
                     // [Reference]: if (decimal.TryParse(Text, out decVal)) { val = decVal.ToString("0.00"); }
@@ -329,6 +342,7 @@ namespace RG_Custom_Controls.Controls
             else { Text_SetWholeNumber(); }
         }
 
+
         /// <summary> Toggle Currency Designator </summary>
         private void Text_SetCurrency()
         {
@@ -343,13 +357,16 @@ namespace RG_Custom_Controls.Controls
                     switch (designatorAlignment)
                     {
                         case DesignatorAlignment.Left:
-                            if (!Text.StartsWith(currencyDesignator))
-                            { Text = $"{currencyDesignator} {GetNumericString()}"; }
-                            break;
+                            //if (!Text.StartsWith(currencyDesignator))
+                            //{ Text = $"{currencyDesignator} {GetNumericValue()}"; }
+                            Text = $"{currencyDesignator} {GetNumericString()}";
+                    
+                    break;
 
                         case DesignatorAlignment.Right:
-                            if (!Text.EndsWith(currencyDesignator))
-                            { Text = $"{GetNumericString()} {currencyDesignator}"; }
+                            //if (!Text.EndsWith(currencyDesignator))
+                            //{ Text = $"{GetNumericValue()} {currencyDesignator}"; }
+                            Text = $"{GetNumericString()} {currencyDesignator}";
                             break;
                     }
                 }
@@ -367,8 +384,8 @@ namespace RG_Custom_Controls.Controls
         {
             switch (inputType)
             {
-                case TextBoxInputType.Numeric: TextAlign = HorizontalAlignment.Right;  break;  // Default & Unchangeable Alignment
-                case TextBoxInputType.IPV4:    TextAlign = HorizontalAlignment.Center; break;  // Default & Unchangeable Alignment
+                case TextBoxInputType.Numeric: TextAlign = HorizontalAlignment.Right; break;  // Default & Unchangeable Alignment
+                case TextBoxInputType.IPV4: TextAlign = HorizontalAlignment.Center; break;  // Default & Unchangeable Alignment
             }
         }
 
@@ -422,16 +439,22 @@ namespace RG_Custom_Controls.Controls
             return isNumeric;
 
         }
-        
+
         /// <summary> Retrieves Numeric String. </summary>
         /// <returns></returns>
         private string GetNumericString()
         {
+            string val = string.Empty;
+
             switch (inputType)
             {
                 case TextBoxInputType.Numeric:
                     Text_RemoveWhiteSpaces();
                     Text_RemoveCurrency();
+
+                    // Ensure the Text Value is a Number
+                    //if (IsNumericString(Text)) { val = Text; }
+                    //else { val = "0"; }
                     break;
             }
 
@@ -455,7 +478,7 @@ namespace RG_Custom_Controls.Controls
         }
         #endregion
 
-        #region <Char Limiter>
+        #region <Methods> : (Char Limiter)
         /// <summary> Checks if the TextBox is Limiting the Maximum Number of Characters. </summary>
         /// <param name="textLength"></param>
         /// <returns> True if the TextBox is Limiting the Maximum Number Chars </returns>
@@ -486,7 +509,7 @@ namespace RG_Custom_Controls.Controls
         }
         #endregion
 
-        #region <Char Manipulation>
+        #region <Methods> : (Char Manipulation)
         /// <summary> Calculates the Nr. of Occurrences for the Specified Char Parameter. </summary>
         /// <param name="char"></param>
         /// <returns> The Number of the Received Char Parameter Occurrences Found in the TextBox Text. </returns>
@@ -496,7 +519,29 @@ namespace RG_Custom_Controls.Controls
         }
         #endregion
 
-        #region <Clipboard Control>
+        #region <Methods> : (Clipboard Control)
+        /// <summary> Checks if the Clipboard Content Value is Valid. </summary>
+        /// <param name="val"></param>
+        /// <returns> True if Clipboard Content Matches the TextBox Input Requirements. </returns>
+        private bool HasValidClipboardContent(string val)
+        {
+            bool isValid = false;
+
+            switch (inputType)
+            {
+                case TextBoxInputType.Default: isValid = !IsLimitingChars(val.Length); break;
+                case TextBoxInputType.Numeric:
+                    isValid = !IsLimitingChars(val.Length) && IsNumericString(val);
+                    break;
+
+                case TextBoxInputType.IPV4:
+                    isValid = HasValidIPAddress(val);
+                    break;
+            }
+
+            return isValid;
+        }
+
         protected override void WndProc(ref Message m)
         {
             /*
@@ -524,31 +569,9 @@ namespace RG_Custom_Controls.Controls
                 }
             }
         }
-
-        /// <summary> Determines if the Clipboard Content Value is Valid. </summary>
-        /// <param name="val"></param>
-        /// <returns> True if Clipboard Content Matches the TextBox Input Requirements. </returns>
-        private bool HasValidClipboardContent(string val)
-        {
-            bool isValid = false;
-
-            switch (inputType)
-            {
-                case TextBoxInputType.Default: isValid = !IsLimitingChars(val.Length); break;
-                case TextBoxInputType.Numeric:
-                    isValid = !IsLimitingChars(val.Length) && IsNumericString(val);
-                    break;
-
-                case TextBoxInputType.IPV4:
-                    isValid = HasValidIPAddress(val);
-                    break;
-            }
-
-            return isValid;
-        }
         #endregion
 
-        #region <IP Validation>
+        #region <Methods> : (IP Validation)
         /// <summary> Checks if String Contains a Valid IPv4 Address. </summary>
         /// <returns> True if the IPv4 Address is Valid. </returns>
         private bool HasValidIPAddress(string value)
@@ -584,8 +607,9 @@ namespace RG_Custom_Controls.Controls
         }
         #endregion
 
-        #region <Text Formatting> : (Update the Text Value with Proper Formatting)
-        /// <summary> Format the Text Value. </summary>
+
+        #region <Methods> : (Text Formatting)
+        /// <summary> Formats the Control Text with Proper Formatting for the Selected Input Type. </summary>
         private void Text_FormatValue()
         {
             switch (inputType)
@@ -600,7 +624,7 @@ namespace RG_Custom_Controls.Controls
 
                 case TextBoxInputType.IPV4: Text = "0.0.0.0"; break;
             }
-        } 
+        }
         #endregion
 
     }
