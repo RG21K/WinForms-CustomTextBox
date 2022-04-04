@@ -7,14 +7,15 @@
  *      - Fixed: Prevented Invalid Clipboard Data to be Set to the Control.
  *      - Fixed: (Occasionally) Impossible to Set the Decimals and Currency Designator when Changing the TextBox Input Type.
  *      - Fixed: Character Limiter Function was Missing.
- *      - Fixed: Currency Designator was not Being Updated.
+ *      - Fixed: Placeholder Function was Missing.
+ *      - Fixed: Fail to Set Decimals on a Single (the 1st TextBox)
  *
- * Known Bugs:
- *      - There is an issue with Text Limiter while using Decimals. TextBox Prevents user Text Input Proper Behaviour.
+ * Known Issues:
+ *      - Pasting Clipboard Data: Behaviour can be Improved.
+ *      - There is an issue with Text Limiter. When using Decimals: TextBox has Text Input Improper Behaviour.
  *      - Sometimes not Accepting Paste. SHIFT + INSERT, on the other hand is allowed.
- *      - Default Initial (Default) Value Impossible to be Set.
- *      - Fails to Set Decimals on a Single (the 1st TextBox)
- *      - Subscribing the "Leave" Event on a Form, Causes a Weird Effect.
+ *      - Initial (Default) Value Impossible to be Set.
+ *      - Subscribing the "Leave" Event on a Form, Causes a Weird Behaviour.
  *  
  * 
  * About:
@@ -56,21 +57,34 @@ namespace RG_Custom_Controls.Controls
             BackColor = Color.FromArgb(255, 36, 36, 52);
             BorderStyle = BorderStyle.FixedSingle;
 
-            // Text_FormatValue();
+            // Placeholder Initial Configuration
+            baseTextColor = ForeColor;
+            baseTextFont = Font;
         }
         #endregion
 
 
         #region <Fields>
+        // -> Number & Decimals (Configuration)
         private const int WM_PASTE = 0x0302;            // Used to Validate Clipboard Data.
-        private string numbers = "0123456789.";
-        private string allowedChars => numbers;
-        private string decimalFormat = string.Empty;
+        private string numbers = "0123456789.";         // Filter to Determine if Char Contains Number.
+        private string allowedChars => numbers;         // Filter to Determine if Char Contains Number.
+        private string decimalFormat = "0.00";          // Initial (Selected) Decimal Format.
+
+        // -> Placeholder
+        private bool isPlaceholder { get; set; }
+        private Color baseTextColor { get; set; }
+        private Font baseTextFont { get; set; }
+
+        // -> Numeric Text (Properties)
 
         /// <summary> Retrieves TextBox Numeric Value String. </summary>
         public string NumericText => GetNumericString();
         /// <summary> Retrieves TextBox Numeric Value. </summary>
         public double NumericValue => GetNumericValue();
+
+
+
         #endregion
 
 
@@ -78,7 +92,7 @@ namespace RG_Custom_Controls.Controls
         /// <summary> TextBox Text Input Type (Normal, Numeric, IPV4). </summary>
         public enum TextBoxInputType { Default, Numeric, IPV4 }
         private TextBoxInputType inputType = TextBoxInputType.Default;
-        [Category("1. Custom Properties"), DisplayName("1. Input Type")]
+        [Category("1. Custom Properties"), DisplayName("01. Input Type")]
         [Description("Select Control Input Type (Normal, Numeric or Currency).")]
         [Bindable(true)] /* Required for Enum Types */
         [Browsable(true)]
@@ -98,7 +112,7 @@ namespace RG_Custom_Controls.Controls
 
         #region <Custom Properties> : (2. Curency)
         private bool useCurrency = false;
-        [Category("1. Custom Properties"), DisplayName("2. Use Currency")]
+        [Category("1. Custom Properties"), DisplayName("02. Use Currency")]
         [Description("Set the Control Text to be used as Coin Currency")]
         [Browsable(true)]
         public bool CurrencyEnabled
@@ -115,7 +129,7 @@ namespace RG_Custom_Controls.Controls
         }
 
         private string currencyDesignator = "€";
-        [Category("1. Custom Properties"), DisplayName("3. Currency Designator")]
+        [Category("1. Custom Properties"), DisplayName("03. Currency Designator")]
         [Description("Set Currency Symbol or Designator.\n\n i.e: €, Eur, Euros")]
         [Browsable(true)]
         public string CurrencyDesignator
@@ -138,7 +152,7 @@ namespace RG_Custom_Controls.Controls
 
         public enum DesignatorAlignment { Left, Right }
         private DesignatorAlignment designatorAlignment = DesignatorAlignment.Right;
-        [Category("1. Custom Properties"), DisplayName("4. Designator Location")]
+        [Category("1. Custom Properties"), DisplayName("04. Designator Location")]
         [Description("Select Currency Designator Location")]
         [Bindable(true)] /* Required for Enum Types */
         [Browsable(true)]
@@ -158,7 +172,7 @@ namespace RG_Custom_Controls.Controls
 
         #region <Custom Properties> : (3. Decimals)
         private bool useDecimals = false;
-        [Category("1. Custom Properties"), DisplayName("5. Use Decimals")]
+        [Category("1. Custom Properties"), DisplayName("05. Use Decimals")]
         [Description("Select wether to use Whole Number or a Decimal Number.")]
         [Browsable(true)]
         public bool UseDecimals
@@ -175,7 +189,7 @@ namespace RG_Custom_Controls.Controls
         }
 
         private int decimalPlaces = 2;
-        [Category("1. Custom Properties"), DisplayName("6. Decimal Places")]
+        [Category("1. Custom Properties"), DisplayName("06. Decimal Places")]
         [Description("Select wether to use Whole Number or a Decimal Number.")]
         [Browsable(true)]
         public int DecimalPlaces
@@ -193,7 +207,7 @@ namespace RG_Custom_Controls.Controls
                         case 1: decimalFormat = "0.0"; break;
                         case 2: decimalFormat = "0.00"; break;
                         case 3: decimalFormat = "0.000"; break;
-                        case 5: decimalFormat = "0.0000"; break;
+                        case 4: decimalFormat = "0.0000"; break;
                     }
                 }
 
@@ -206,7 +220,7 @@ namespace RG_Custom_Controls.Controls
 
         #region <Custom Properties> : (4. Char Limiter)
         private bool charsLimited = false;
-        [Category("1. Custom Properties"), DisplayName("7. Chars Limited")]
+        [Category("1. Custom Properties"), DisplayName("07. Chars Limited")]
         [Description("Toggle Character Input Limiting.")]
         [Browsable(true)]
         public bool CharsLimited
@@ -216,13 +230,77 @@ namespace RG_Custom_Controls.Controls
         }
 
         private int maximumChars = 32;
-        [Category("1. Custom Properties"), DisplayName("8. Maximum Chars")]
+        [Category("1. Custom Properties"), DisplayName("08. Maximum Chars")]
         [Description("Limit the Maximum Number of Chars Allowed on the Control.")]
         [Browsable(true)]
         public int MaximumChars
         {
             get { return maximumChars; }
             set { maximumChars = value; }
+        }
+        #endregion
+
+        #region <Custom Properties> : (5. Placeholder)
+        private bool usePlaceholder = false;
+        [Category("1. Custom Properties"), DisplayName("09. Use Placeholder")]
+        [Description("Toggle TextBox Placeholder Function.")]
+        [Browsable(true)]
+        public bool UsePlaceholder
+        {
+            get { return usePlaceholder; }
+            set
+            {
+                usePlaceholder = value;
+
+                TogglePlaceholder();
+
+                Invalidate();
+            }
+        }
+
+        private string placeHolderText = "Enter Text";
+        [Category("1. Custom Properties"), DisplayName("10. Placeholder Text")]
+        [Description("Set Placeholder Text.")]
+        [Browsable(true)]
+        public string PlaceholderText
+        {
+            get { return placeHolderText; }
+            set
+            {
+                placeHolderText = value;
+
+                Invalidate();
+            }
+        }
+
+        private Color placeHolderForeColor = Color.DimGray;
+        [Category("1. Custom Properties"), DisplayName("11. Placeholder ForeColor")]
+        [Description("Set Placeholder Text.")]
+        [Browsable(true)]
+        public Color PlaceholderForeColor
+        {
+            get { return placeHolderForeColor; }
+            set
+            {
+                placeHolderForeColor = value;
+
+                Invalidate();
+            }
+        }
+
+        private Font placeHolderFont = new Font("Consolas", 10, FontStyle.Italic);
+        [Category("1. Custom Properties"), DisplayName("12. Placeholder Font")]
+        [Description("Set Placeholder Font.")]
+        [Browsable(true)]
+        public Font PlaceholderFont
+        {
+            get { return placeHolderFont; }
+            set
+            {
+                placeHolderFont = value;
+
+                Invalidate();
+            }
         }
         #endregion
 
@@ -235,7 +313,10 @@ namespace RG_Custom_Controls.Controls
         {
             base.OnValidating(e);
 
-            Text_FormatValue();
+            if (!DesignMode)
+            {
+                Text_FormatValue();
+            }
         }
 
         /// <summary> Occurs when a Keyboard Key is Pressed. </summary>
@@ -244,18 +325,23 @@ namespace RG_Custom_Controls.Controls
         {
             base.OnKeyPress(e);
 
-            if (!e.KeyChar.Equals((char)Keys.Back))
+            if (!DesignMode)
             {
-                switch (inputType)
+                if (!e.KeyChar.Equals((char)Keys.Back))
                 {
-                    case TextBoxInputType.Default: e.Handled = IsLimitingChars(Text.Length); break;
-                    case TextBoxInputType.Numeric:
-                        e.Handled = !HasValidNumericChar(e.KeyChar) ^ IsLimitingChars(Text.Length);
-                        //if (e.KeyChar.Equals('.') & NrCharOccurrences('.') >= 1) { e.Handled = true; }
-                        e.Handled = e.KeyChar.Equals('.') & NrCharOccurrences('.') >= 1;
-                        break;
+                    switch (inputType)
+                    {
+                        case TextBoxInputType.Default: e.Handled = IsLimitingChars(Text.Length); break;
+                        case TextBoxInputType.Numeric:
+                            e.Handled = !HasValidNumericChar(e.KeyChar) ^ IsLimitingChars(Text.Length);
+                            //if (e.KeyChar.Equals('.') & NrCharOccurrences('.') >= 1) { e.Handled = true; }
+                            e.Handled = e.KeyChar.Equals('.') & NrCharOccurrences('.') >= 1;
+                            break;
+                    }
                 }
             }
+
+            TogglePlaceholder();
         }
 
         /// <summary> Occurs when the Control Becomes the Active Control. </summary>
@@ -264,13 +350,18 @@ namespace RG_Custom_Controls.Controls
         {
             base.OnEnter(e);
 
-            // Format the String Value
-            Text_FormatValue();
-            Text_RemoveCurrency();
-            Text_RemoveWhiteSpaces();
+            if (!DesignMode)
+            {
+                // Format the String Value
+                Text_FormatValue();
+                Text_RemoveCurrency();
+                Text_RemoveWhiteSpaces();
 
-            // Select the Text
-            SelectAll();
+                // Select the Text
+                SelectAll();
+
+                TogglePlaceholder();
+            }
         }
 
         /// <summary> Occurs when the Control Stops Being the Active Control. </summary>
@@ -279,9 +370,15 @@ namespace RG_Custom_Controls.Controls
         {
             base.OnLeave(e);
 
-            Text_FormatValue();
+            if (!DesignMode)
+            {
+                Text_FormatValue();
+
+                TogglePlaceholder();
+            }
         }
         #endregion
+
 
 
         #region <Methods> : (Numeric String)
@@ -309,7 +406,7 @@ namespace RG_Custom_Controls.Controls
             if (useDecimals)
             {
                 // String Contains a Value:
-                if (!string.IsNullOrEmpty(GetNumericString()) ^ !string.IsNullOrWhiteSpace(GetNumericString()))
+                if (!string.IsNullOrEmpty(GetNumericString()) & !string.IsNullOrWhiteSpace(GetNumericString()))
                 {
                     decimal decVal = -1;
 
@@ -361,8 +458,8 @@ namespace RG_Custom_Controls.Controls
                             //if (!Text.StartsWith(currencyDesignator))
                             //{ Text = $"{currencyDesignator} {GetNumericValue()}"; }
                             Text = $"{currencyDesignator} {GetNumericString()}";
-                    
-                    break;
+
+                            break;
 
                         case DesignatorAlignment.Right:
                             //if (!Text.EndsWith(currencyDesignator))
@@ -608,6 +705,43 @@ namespace RG_Custom_Controls.Controls
         }
         #endregion
 
+        #region <Methods> : (Placeholder)
+        /// <summary> Toggle Placeholder. </summary>
+        private void TogglePlaceholder()
+        {
+            if (usePlaceholder)
+            {
+                var hasEmptyText = string.IsNullOrEmpty(Text) & string.IsNullOrWhiteSpace(Text);
+
+                switch (hasEmptyText)
+                {
+                    // Set Placeholder Text
+                    case true:
+
+                        if (!isPlaceholder)
+                        {
+                            Text = placeHolderText;
+                            ForeColor = placeHolderForeColor;
+                            Font = placeHolderFont;
+
+                            isPlaceholder = true;
+                        }
+                        break;
+
+                    case false:
+                        if (isPlaceholder)
+                        {
+                            ForeColor = baseTextColor;
+                            Font = baseTextFont;
+                            Text = String.Empty;
+
+                            isPlaceholder = false;
+                        }
+                        break;
+                }
+            }
+        }
+        #endregion
 
         #region <Methods> : (Text Formatting)
         /// <summary> Formats the Control Text with Proper Formatting for the Selected Input Type. </summary>
@@ -615,6 +749,8 @@ namespace RG_Custom_Controls.Controls
         {
             switch (inputType)
             {
+                case TextBoxInputType.Default: /* ... */ break;
+
                 case TextBoxInputType.Numeric:
 
                     Text_ToggleDecimals();  // Toggle Decimals
