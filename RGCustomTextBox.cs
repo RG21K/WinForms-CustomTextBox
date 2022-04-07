@@ -87,7 +87,6 @@ namespace RG_Custom_Controls.Controls
 
         #endregion
 
-
         #region <Custom Properties> : (1. Input Type)
         /// <summary> TextBox Text Input Type (Normal, Numeric, IPV4). </summary>
         public enum TextBoxInputType { Default, Numeric, IPV4 }
@@ -253,7 +252,7 @@ namespace RG_Custom_Controls.Controls
                 usePlaceholder = value;
 
                 TogglePlaceholder();
-
+                
                 Invalidate();
             }
         }
@@ -268,7 +267,8 @@ namespace RG_Custom_Controls.Controls
             set
             {
                 placeHolderText = value;
-
+                Text = value;
+                
                 Invalidate();
             }
         }
@@ -331,17 +331,22 @@ namespace RG_Custom_Controls.Controls
                 {
                     switch (inputType)
                     {
-                        case TextBoxInputType.Default: e.Handled = IsLimitingChars(Text.Length); break;
+                        case TextBoxInputType.Default:
+                            e.Handled = IsLimitingChars(Text.Length);
+                            TogglePlaceholder();
+                            break;
+
                         case TextBoxInputType.Numeric:
                             e.Handled = !HasValidNumericChar(e.KeyChar) ^ IsLimitingChars(Text.Length);
                             //if (e.KeyChar.Equals('.') & NrCharOccurrences('.') >= 1) { e.Handled = true; }
                             e.Handled = e.KeyChar.Equals('.') & NrCharOccurrences('.') >= 1;
                             break;
                     }
+
+                    // Disable Warning Beep when Enter Key is Pressed:
+                    e.Handled = e.KeyChar.Equals((char)Keys.Enter);
                 }
             }
-
-            TogglePlaceholder();
         }
 
         /// <summary> Occurs when the Control Becomes the Active Control. </summary>
@@ -352,15 +357,15 @@ namespace RG_Custom_Controls.Controls
 
             if (!DesignMode)
             {
+                TogglePlaceholder();
+
                 // Format the String Value
                 Text_FormatValue();
                 Text_RemoveCurrency();
-                Text_RemoveWhiteSpaces();
+                Text_RemoveWhiteSpaces();                
 
                 // Select the Text
                 SelectAll();
-
-                TogglePlaceholder();
             }
         }
 
@@ -373,7 +378,6 @@ namespace RG_Custom_Controls.Controls
             if (!DesignMode)
             {
                 Text_FormatValue();
-
                 TogglePlaceholder();
             }
         }
@@ -711,7 +715,7 @@ namespace RG_Custom_Controls.Controls
         {
             if (usePlaceholder)
             {
-                var hasEmptyText = string.IsNullOrEmpty(Text) & string.IsNullOrWhiteSpace(Text);
+                var hasEmptyText = string.IsNullOrEmpty(Text)/* & string.IsNullOrWhiteSpace(Text)*/;
 
                 switch (hasEmptyText)
                 {
@@ -720,22 +724,20 @@ namespace RG_Custom_Controls.Controls
 
                         if (!isPlaceholder)
                         {
-                            Text = placeHolderText;
-                            ForeColor = placeHolderForeColor;
-                            Font = placeHolderFont;
-
                             isPlaceholder = true;
+                            ForeColor = placeHolderForeColor;
+                            Text = placeHolderText;
+                            Font = placeHolderFont;
                         }
                         break;
 
                     case false:
                         if (isPlaceholder)
                         {
+                            isPlaceholder = false;
+                            Text = string.Empty;
                             ForeColor = baseTextColor;
                             Font = baseTextFont;
-                            Text = String.Empty;
-
-                            isPlaceholder = false;
                         }
                         break;
                 }
